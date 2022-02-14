@@ -20,11 +20,10 @@ repositories {
 dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-    implementation("io.undertow:undertow-core:2.2.14.Final")
 }
 
 application {
-    mainClass.set("org.geepawhill.rwm.MakerMainKt")
+    mainClass.set("org.geepawhill.gph3.MakerMainKt")
 }
 
 kotlin {
@@ -44,7 +43,8 @@ javafx {
     modules = mutableListOf(
         "javafx.controls",
         "javafx.graphics",
-        "javafx.fxml"
+        "javafx.fxml",
+        "javafx.web"
     )
 }
 dependencies {
