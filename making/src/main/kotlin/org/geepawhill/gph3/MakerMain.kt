@@ -5,6 +5,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.PrintWriter
 import java.net.ServerSocket
+import java.net.Socket
 
 
 class MakerMain : App(MakerView::class)
@@ -15,29 +16,38 @@ Content-Type: text/html
 <html>Hi Mom!</html>
 """
 
-class Server : Runnable {
+interface Acceptor {
+    fun accept(socket: Socket)
+}
+
+class HttpAcceptor : Acceptor {
+    override fun accept(socket: Socket) {
+        val input = BufferedReader(InputStreamReader(socket.getInputStream()))
+        while (true) {
+            val line = input.readLine();
+            if (line.isEmpty()) break
+            System.out.println(line);
+        }
+        val output = PrintWriter(socket.getOutputStream())
+        output.print(html)
+        output.flush()
+        output.close()
+        socket.close()
+    }
+}
+
+class Server(val acceptor: Acceptor) : Runnable {
     override fun run() {
         val socket = ServerSocket(8080)
         do {
-            val accepted = socket.accept()
-            val input = BufferedReader(InputStreamReader(accepted.getInputStream()))
-            while (true) {
-                val line = input.readLine();
-                if (line.isEmpty()) break
-                System.out.println(line);
-            }
-            val output = PrintWriter(accepted.getOutputStream())
-            output.print(html)
-            output.flush()
-            output.close()
-            accepted.close()
+            acceptor.accept(socket.accept())
         } while (true)
     }
-
 }
 
 fun main(args: Array<String>) {
-    val thread = Thread(Server())
+    val acceptor = HttpAcceptor()
+    val thread = Thread(Server(acceptor))
     thread.isDaemon = true
     thread.start()
     launch<MakerMain>(args)
