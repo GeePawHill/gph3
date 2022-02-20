@@ -6,6 +6,7 @@ import java.io.InputStreamReader
 import java.io.PrintWriter
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 
 
 class MakerMain : App(MakerView::class)
@@ -20,7 +21,7 @@ interface Acceptor {
     fun accept(socket: Socket)
 }
 
-class HttpAcceptor : Acceptor {
+class SimpleAcceptor : Acceptor {
     override fun accept(socket: Socket) {
         val input = BufferedReader(InputStreamReader(socket.getInputStream()))
         while (true) {
@@ -36,18 +37,40 @@ class HttpAcceptor : Acceptor {
     }
 }
 
-class Server(val acceptor: Acceptor) : Runnable {
-    override fun run() {
+interface ContinueFlag {
+    val isTrue: Boolean
+
+    companion object {
+        val FOREVER = object : ContinueFlag {
+            override val isTrue: Boolean = true
+        }
+    }
+}
+
+interface Listener {
+    fun listenWhile(continueFlag: ContinueFlag)
+}
+
+class SimpleListener(val acceptor: Acceptor) : Listener {
+    override fun listenWhile(continueFlag: ContinueFlag) {
         val socket = ServerSocket(8080)
-        do {
-            acceptor.accept(socket.accept())
-        } while (true)
+        while (continueFlag.isTrue) {
+            socket.soTimeout = 100
+            try {
+                val accepted = socket.accept()
+                acceptor.accept(accepted)
+            } catch (ignored: SocketTimeoutException) {
+            }
+        }
+        socket.close()
     }
 }
 
 fun main(args: Array<String>) {
-    val acceptor = HttpAcceptor()
-    val thread = Thread(Server(acceptor))
+    val thread = Thread {
+        val listener = SimpleListener(SimpleAcceptor())
+        listener.listenWhile(ContinueFlag.FOREVER)
+    }
     thread.isDaemon = true
     thread.start()
     launch<MakerMain>(args)
